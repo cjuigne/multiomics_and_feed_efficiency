@@ -1,0 +1,119 @@
+---
+title: "R Notebook"
+output: html_notebook
+---
+
+```{r}
+if (!require("dplyr")) install.packages("dplyr")   
+if (!require("factoextra")) install.packages("factoextra")   
+if (!require("FactoMineR")) install.packages("FactoMineR")  
+if (!require("corrplot")) install.packages("corrplot")  
+```
+
+```{r}
+load(file = "./rdata/datainput/datainput.RData")
+```
+
+```{r}
+data_met = data_met[order(data_met$num),]
+rownames = data_met$num
+rownames(data_met) = rownames
+```
+```{r}
+res.pca = PCA(data_met, quali.sup = c(1)) 
+print(res.pca)
+```
+```{r}
+eig.val = get_eigenvalue(res.pca)
+eig.val
+```
+
+```{r}
+fviz_eig(res.pca, addlabels = TRUE, ylim = c(0, 50), main = "Scree plot")
+```
+
+
+```{r}
+var = get_pca_var(res.pca)
+head(var$coord) 
+head(var$cos2) 
+head(var$contrib)
+```
+
+```{r}
+corrplot(t(var$cos2), is.corr=FALSE) 
+```
+
+```{r}
+fviz_cos2(res.pca, choice = "var", axes = 1:2)
+```
+
+```{r}
+pdf("./figures/pca_met_1_2.pdf", width = 20, height = 25)
+
+options(ggrepel.max.overlaps = Inf)
+fviz_pca_var(res.pca, labelsize = 9, label = "all",invisible = "none", title = '', geom = c('point', 'text'), pointsize = 3, repel = TRUE,
+              select.var= list( name = c("HDL", "LDL", "VLDL",  "Ile", "Ile, Leu",  "Leu", "Val", "Val, Ile",  "Ile.1", "Val.1", "LDL, 3-OHB", 
+                                        "VLDL.1",  "VLDL, Thr", "Lac", "Ala", "LDL, Lys, Ile", "Lys, Arg, Leu", "Lys", "Ac",  "LDL, Pro, Glu",  
+                                        "Nac, Glu, LDL, Pro", "Gln, Glu, LDL, Pro", "Gln, Glu",  "Met", "Gln, Glu.1", "VLDL.2",  "Ace", "VLDL, Val", "Glu, Pro",  "Pyr, Glu, Pro",  
+                                        "Glu, Pro.1",  "Succ",  "Gln", "Cit", "Met.1", "Cit, Lipids", "VLDL, Lipids", "Lys, tyr",  "Cre, Lys",  "Crn, Lys",  "Tyr",  
+                                        "Cho", "LDL.1",  "Glc", "Glc.1", "Bet, TMAO", "M-ino", "Pro", "Glc, AA", "Glc, AA.1", "Glc, AA.2", "Glc, AA.3", "Glc, AA.4",  
+                                        "Gly, Glc",  "Thr", "Val, M-ino",  "M-ino.1","M-ino.2", "Ile.2", "Glc, AA.5", "Glc, AA.6", "Glc, AA.7", "Glc, AA.8", "Glc, Bet",  "Glc, AA.9", "Cre",  
+                                        "M-ino.3", "Lac.1",  "Pro.1", "Thr.1", "Alpha-Glc", "VLDL.3", "Tyr.1", "His", "Tyr.2", "Phe", "His.1",  "For"))) + theme(text = element_text(size = 22), axis.title.x = element_text(size = 22), axis.title.y = element_text(size = 22))
+dev.off()
+
+```
+![ACP dim1 and 2](./figures/pca_met_1_2.pdf){width=60%}
+
+
+```{r}
+pdf("./figures/pca_met_3_4.pdf", width = 20, height = 25)
+
+options(ggrepel.max.overlaps = Inf)
+fviz_pca_var(res.pca, axes = c(3,4), labelsize = 6, label = "all",invisible = "none", title = '', geom = c('point', 'text'), pointsize = 3, repel = TRUE,
+              select.var= list( name = c("HDL", "LDL", "VLDL",  "Ile", "Ile, Leu",  "Leu", "Val", "Val, Ile",  "Ile.1", "Val.1", "LDL, 3-OHB", 
+                                        "VLDL.1",  "VLDL, Thr", "Lac", "Ala", "LDL, Lys, Ile", "Lys, Arg, Leu", "Lys", "Ac",  "LDL, Pro, Glu",  
+                                        "Nac, Glu, LDL, Pro", "Gln, Glu, LDL, Pro", "Gln, Glu",  "Met", "Gln, Glu.1", "VLDL.2",  "Ace", "VLDL, Val", "Glu, Pro",  "Pyr, Glu, Pro",  
+                                        "Glu, Pro.1",  "Succ",  "Gln", "Cit", "Met.1", "Cit, Lipids", "VLDL, Lipids", "Lys, tyr",  "Cre, Lys",  "Crn, Lys",  "Tyr",  
+                                        "Cho", "LDL.1",  "Glc", "Glc.1", "Bet, TMAO", "M-ino", "Pro", "Glc, AA", "Glc, AA.1", "Glc, AA.2", "Glc, AA.3", "Glc, AA.4",  
+                                        "Gly, Glc",  "Thr", "Val, M-ino",  "M-ino.1","M-ino.2", "Ile.2", "Glc, AA.5", "Glc, AA.6", "Glc, AA.7", "Glc, AA.8", "Glc, Bet",  "Glc, AA.9", "Cre",  
+                                        "M-ino.3", "Lac.1",  "Pro.1", "Thr.1", "Alpha-Glc", "VLDL.3", "Tyr.1", "His", "Tyr.2", "Phe", "His.1",  "For"))) + theme(text = element_text(size = 22), axis.title.x = element_text(size = 22), axis.title.y = element_text(size = 22))
+dev.off()
+```
+![ACP dim3 and 4](./figures/pca_met_3_4.pdf){width=60%}
+
+
+```{r}
+pdf("./figures/pca_met_3_5.pdf", width = 20, height = 25)
+
+options(ggrepel.max.overlaps = Inf)
+fviz_pca_var(res.pca, axes = c(3,4), labelsize = 6, label = "all",invisible = "none", title = '', geom = c('point', 'text'), pointsize = 3, repel = TRUE,
+              select.var= list( name = c("HDL", "LDL", "VLDL",  "Ile", "Ile, Leu",  "Leu", "Val", "Val, Ile",  "Ile.1", "Val.1", "LDL, 3-OHB", 
+                                        "VLDL.1",  "VLDL, Thr", "Lac", "Ala", "LDL, Lys, Ile", "Lys, Arg, Leu", "Lys", "Ac",  "LDL, Pro, Glu",  
+                                        "Nac, Glu, LDL, Pro", "Gln, Glu, LDL, Pro", "Gln, Glu",  "Met", "Gln, Glu.1", "VLDL.2",  "Ace", "VLDL, Val", "Glu, Pro",  "Pyr, Glu, Pro",  
+                                        "Glu, Pro.1",  "Succ",  "Gln", "Cit", "Met.1", "Cit, Lipids", "VLDL, Lipids", "Lys, tyr",  "Cre, Lys",  "Crn, Lys",  "Tyr",  
+                                        "Cho", "LDL.1",  "Glc", "Glc.1", "Bet, TMAO", "M-ino", "Pro", "Glc, AA", "Glc, AA.1", "Glc, AA.2", "Glc, AA.3", "Glc, AA.4",  
+                                        "Gly, Glc",  "Thr", "Val, M-ino",  "M-ino.1","M-ino.2", "Ile.2", "Glc, AA.5", "Glc, AA.6", "Glc, AA.7", "Glc, AA.8", "Glc, Bet",  "Glc, AA.9", "Cre",  
+                                        "M-ino.3", "Lac.1",  "Pro.1", "Thr.1", "Alpha-Glc", "VLDL.3", "Tyr.1", "His", "Tyr.2", "Phe", "His.1",  "For"))) + theme(text = element_text(size = 22), axis.title.x = element_text(size = 22), axis.title.y = element_text(size = 22))
+dev.off()
+```
+![ACP dim3 and 5](./figures/pca_met_3_5.pdf){width=60%}
+
+
+##### Hierarchical clustering:
+```{r}
+res.hcpc <- HCPC(res.pca, graph = FALSE)
+fviz_dend(res.hcpc, 
+          cex = 0.7,                     
+          palette = "jco",               
+          rect = TRUE, rect_fill = TRUE,
+          rect_border = "jco",           
+          labels_track_height = 0.8 
+)
+```
+
+
+```{r}
+save(res.pca, file = "./rdata/pca/pca_met.RData")
+```
+

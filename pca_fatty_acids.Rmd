@@ -1,0 +1,97 @@
+---
+title: "R Notebook"
+output: html_notebook
+---
+
+```{r}
+if (!require("dplyr")) install.packages("dplyr")   
+if (!require("factoextra")) install.packages("factoextra")   
+if (!require("FactoMineR")) install.packages("FactoMineR")  
+if (!require("corrplot")) install.packages("corrplot")  
+```
+
+```{r}
+load(file = "./rdata/datainput/datainput.RData")
+```
+
+```{r}
+data_FA = data_FA[order(data_FA$num),]
+rownames = data_FA$num
+rownames(data_FA) = rownames
+```
+```{r}
+res.pca = PCA(data_FA, quali.sup = c(1)) 
+print(res.pca)
+```
+```{r}
+eig.val = get_eigenvalue(res.pca)
+eig.val
+```
+
+```{r}
+fviz_eig(res.pca, addlabels = TRUE, ylim = c(0, 50), main = "Scree plot")
+```
+
+
+```{r}
+var = get_pca_var(res.pca)
+head(var$coord) 
+head(var$cos2) 
+head(var$contrib)
+```
+
+```{r}
+corrplot(t(var$cos2), is.corr=FALSE) 
+```
+
+```{r}
+fviz_cos2(res.pca, choice = "var", axes = 1:2)
+```
+
+```{r}
+pdf("./figures/pca_fa_1_2.pdf", width = 10, height = 15)
+
+options(ggrepel.max.overlaps = Inf)
+fviz_pca_var(res.pca, labelsize = 6, label = "all",invisible = "none", title = '', geom = c('point', 'text'), pointsize = 3, repel = TRUE) + theme(text = element_text(size = 18), axis.title.x = element_text(size = 18), axis.title.y = element_text(size = 18))
+dev.off()
+
+```
+![ACP dim1 and 2](./figures/pca_fa_1_2.pdf){width=60%}
+
+
+```{r}
+pdf("./figures/pca_fa_3_4.pdf", width = 10, height = 15)
+
+options(ggrepel.max.overlaps = Inf)
+fviz_pca_var(res.pca, axes = c(3,4), labelsize = 6, label = "all",invisible = "none", title = '', geom = c('point', 'text'), pointsize = 3, repel = TRUE)+ theme(text = element_text(size = 18), axis.title.x = element_text(size = 18), axis.title.y = element_text(size = 18))
+dev.off()
+```
+![ACP dim3 and 4](./figures/pca_fa_3_4.pdf){width=60%}
+
+
+```{r}
+pdf("./figures/pca_fa_3_5.pdf", width = 10, height = 15)
+
+options(ggrepel.max.overlaps = Inf)
+fviz_pca_var(res.pca, axes = c(3,5), labelsize = 6, label = "all",invisible = "none", title = '', geom = c('point', 'text'), pointsize = 3, repel = TRUE)+ theme(text = element_text(size = 18), axis.title.x = element_text(size = 18), axis.title.y = element_text(size = 18))
+dev.off()
+```
+![ACP dim3 and 5](./figures/pca_fa_3_5.pdf){width=60%}
+
+
+##### Hierarchical clustering:
+```{r}
+res.hcpc <- HCPC(res.pca, graph = FALSE)
+fviz_dend(res.hcpc, 
+          cex = 0.7,                     
+          palette = "jco",               
+          rect = TRUE, rect_fill = TRUE,
+          rect_border = "jco",           
+          labels_track_height = 0.8 
+)
+```
+```{r}
+save(res.pca, file = "./rdata/pca/pca_fa.RData")
+```
+
+

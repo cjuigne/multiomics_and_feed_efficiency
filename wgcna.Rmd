@@ -1,0 +1,205 @@
+---
+title: "R Notebook"
+output: html_notebook
+---
+
+
+```{r}
+setwd("~/R Fat Integer/data");
+
+if (!require("dplyr")) install.packages("dplyr")   
+if (!require("do")) install.packages("do")   
+if (!require("stringr")) install.packages("stringr")  
+if (!require("ggplot2")) install.packages("ggplot2")  
+```
+
+```{r}
+source(file = "./WGCNA.R")
+```
+```{r}
+load(file = "./rdata/datainput/datainput.RData")
+```
+
+
+```{r}
+PlotSoftThresholdingPower(datExprFoldChange, "signed hybrid")
+```
+$\beta$ is a non-dichotomic soft thresholding that allows to evaluate connection between probes without losing the continuous character of the co-expression. Low correlations are better masked with high $\beta$ values. We set $\beta$ to $6$ according to the criterion of the “approximate scale free topology”.
+
+WGCNA clustering : 
+```{r}
+clust_sh = Clustering.WGCNA(dataExpr = data, TOMRData = NULL, TOM = NULL, minModuleSize = 25, softPower = 6, networkType = "signed hybrid", deepSplit = 2)
+```
+
+```{r}
+table(rownames(clust_sh$MEs) == rownames(datTraits))
+```
+Composition of the modules (probes, genes and unique genes):
+```{r}
+list.probes = ModuleComposition.Probes(clustering = clust_sh, cat = "blood")
+list.genes = ModuleComposition.Genes(clustering = clust_sh, cat = "blood", annotation = annotation)
+list.genes.uniq = lapply(ModuleComposition.Genes(clustering = clust_sh, cat = "blood", annotation = annotation),unique_no.NA)
+```
+
+```{r}
+size.probes = as.data.frame(table(clust_sh$dynamicColors))
+size.genes = as.data.frame(t(as.data.frame(lapply(list.genes.uniq[], length))))
+
+nGenes = length(clust_sh$probes);
+nSamples = nrow(datTraits);
+
+MEs = clust_sh$MEs
+
+moduleTraitCor = cor(MEs, datTraits, use = "p");
+moduleTraitPvalue = corPvalueStudent(moduleTraitCor, nSamples);
+
+size.probes$Var1 = paste("ME", size.probes$Var1, sep="")
+table(size.probes$Var1 == rownames(moduleTraitCor))
+
+size.genes$Var1 = size.probes$Var1
+table(size.probes$Var1 == rownames(moduleTraitCor))
+
+moduleTraitCor2 = cbind(rep(c(NA), each=34),moduleTraitCor)
+moduleTraitPvalue2 = cbind(size.genes$V1, moduleTraitPvalue)
+
+moduleTraitCor3 = cbind(rep(c(NA), each=34),moduleTraitCor2)
+moduleTraitPvalue3 = cbind(size.probes$Freq, moduleTraitPvalue2)
+```
+
+Display the correlation values within a heatmap plot (Modules-Traits relationships):
+```{r}
+# Will display correlations and their p-values
+textMatrix =  paste(signif(moduleTraitCor, 2), "\n(",
+                    signif(moduleTraitPvalue, 1), ")", sep = "");
+textMatrix2 = c(size.genes$V1, textMatrix)
+textMatrix2 = c(size.probes$Freq, textMatrix2)
+
+
+label = str_sub(string = names(MEs),start = 3, end =-1)
+
+colnames(moduleTraitCor3) <- c("probes", 'unique\n genes', "num", "line", "diet", "age", "weight", "ADG", "ADFI", "FCR", "%loin", "%backfat" )
+
+# Display the correlation values within a heatmap plot
+
+pdf("./figures/clust_heatmap.pdf", width = 10, height = 15)
+par(mar = c(5, 9, 3, 3));
+
+labeledHeatmap(Matrix = moduleTraitCor3,
+               xLabels = colnames(moduleTraitCor3),
+               yLabels = names(MEs),
+               ySymbols = names(MEs),
+               colorLabels = FALSE,
+               colors = blueWhiteRed(50),
+               naColor = "white",
+               xLabelsAngle = 0,
+               xLabelsPosition = "top",
+               xLabelsAdj = 0.5,
+               textMatrix = textMatrix2,
+               setStdMargins = FALSE,
+               cex.text = 1,
+               zlim = c(-1,1),
+               showCols = c(1, 2, 7 ,8, 9, 10, 11, 12),
+               font.lab.x = 1.5,
+               height = 20)
+dev.off()
+```
+
+![clust heatmap](./figures/clust_heatmap.pdf){width=60%}
+
+
+
+Distribution of module size :
+```{r}
+ggplot(size.probes, aes(Var1,Freq))+theme(axis.text.x = element_text(angle = 90)) + geom_bar(stat='identity', fill = "grey70")+geom_text(aes(label = Freq, y = Freq), size=4) + xlab("Modules") + ylab("Size (number of probes)")
+```
+
+
+```{r}
+blood_highly_significant = c("violet", "darkred", "lightcyan")
+blood_very_significant = c()
+blood_significant = c("royalblue", "white", "darkorange")
+blood_trend = c("darkolivegreen", "steelblue")
+```
+
+### Hierarchical clustering of module eigengenes.
+The modules that were found highly correlated with feed conversion ratio (FCR) are enlightened (*** $P \leq 0.001$, * $P \leq 0.05$, and a dagger $0.05 < P \leq 0.10$).
+```{r}
+METree = clust_sh$METree
+for (i in c(1:length(METree$labels))){
+  if (is.element(substring(METree$labels[i],3),blood_highly_significant)){
+      METree$labels[i] = paste("***", METree$labels[i])
+  }
+  if (is.element(substring(METree$labels[i],3),blood_very_significant)){
+    METree$labels[i] = paste("**", METree$labels[i])
+  }
+  if (is.element(substring(METree$labels[i],3),blood_significant)){
+    METree$labels[i] = paste("*", METree$labels[i])
+  }
+  if (is.element(substring(METree$labels[i],3),blood_trend)){
+    METree$labels[i] = paste("†", METree$labels[i])
+  }
+}
+
+sizeGrWindow(7, 6)
+plot_METree = plot(METree, xlab = "", main ="", sub = "")
+
+```
+
+
+### Calculate ModuleMembership and the Gene Significance for FCR:
+```{r}
+dataExpr = datExprFoldChange
+
+intramod = intramodularConnectivity.fromExpr(dataExpr, colors = clust_sh$dynamicColors, networkType = "signed hybrid")
+rownames(intramod) = colnames(dataExpr)
+intramod$dynamicColors = clust_sh$dynamicColors
+
+# Define variable FCR containing the weight column of datTrait
+FCR = as.data.frame(datTraits$FCR);
+names(FCR) = "FCR"
+
+# names (colors) of the modules
+modNames = substring(names(clust_sh$MEs), 3)
+
+geneModuleMembership = as.data.frame(cor(dataExpr, clust_sh$MEs, use = "p"));
+MMPvalue = as.data.frame(corPvalueStudent(as.matrix(geneModuleMembership), nSamples));
+
+names(geneModuleMembership) = paste("MM", modNames, sep="");
+names(MMPvalue) = paste("p.MM", modNames, sep="");
+
+geneModuleMembership$ProbeName = rownames(geneModuleMembership)
+MMPvalue$ProbeName = rownames(MMPvalue)
+MM = right_join(geneModuleMembership, MMPvalue, by=c("ProbeName"))
+table(MM$ProbeName == clust_sh$probes)
+MM$modules = clust_sh$dynamicColors
+
+MM = right_join(annotation, MM, by=c("ProbeName"))
+
+geneTraitSignificance = as.data.frame(cor(dataExpr, FCR, use = "p"));
+GSPvalue = as.data.frame(corPvalueStudent(as.matrix(geneTraitSignificance), nSamples));
+
+names(geneTraitSignificance) = paste("GS.", names(FCR), sep="");
+names(GSPvalue) = paste("p.GS.", names(FCR), sep="");
+
+geneTraitSignificance$ProbeName = rownames(geneTraitSignificance)
+geneTraitSignificance$GSPvalue = GSPvalue$p.GS.FCR
+table(geneTraitSignificance$ProbeName == clust_sh$probes)
+geneTraitSignificance$modules = clust_sh$dynamicColors
+
+geneTraitSignificance = right_join(annotation,geneTraitSignificance,by=c("ProbeName"))
+geneTraitSignificance$absGS = abs(geneTraitSignificance$GS.FCR)
+```
+Top 10 Gene Significance for each module :
+```{r}
+geneTraitSignificance %>% group_by(modules) %>% top_n(10, absGS) %>% arrange(modules)
+```
+
+
+
+
+#### Save clustering and composition :
+```{r}
+save(clust_sh, list.genes, list.genes.uniq, list.probes, file = "./rdata/clustering/clust_sh.RData" )
+```
+
+

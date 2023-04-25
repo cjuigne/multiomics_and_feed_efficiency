@@ -1,0 +1,198 @@
+---
+title: "R Notebook"
+output: html_notebook
+---
+
+source(file = "~/R Fat Integer/WGCNA.R")
+
+# Correlation between fatty acids ACP dimensions and modules eigengenes:
+```{r}
+load(file = "./rdata/clustering/clust_sh.RData")
+wgcna_data = clust_sh
+
+load(file = "./rdata/pca/pca_fa.RData")
+FA_PCA = as.data.frame(res.pca$ind$coord[order(as.numeric(rownames(res.pca$ind$coord))),], row.names = rownames(wgcna_data$MEs))
+
+load(file = "./rdata/pca/pca_met.RData")
+met_PCA =  as.data.frame(res.pca$ind$coord[order(as.numeric(rownames(res.pca$ind$coord))),],row.names = rownames(wgcna_data$MEs) )
+```
+
+
+```{r}
+significatifmodule = wgcna_data
+significatifmodule$MEs = significatifmodule$MEs[c(
+                                                  "MEbrown", 
+                                                  "MEdarkgreen", 
+                                                  "MEdarkolivegreen", 
+                                                  "MEdarkorange",
+                                                  "MEdarkred",
+                                                  "MEgreen", 
+                                                  "MElightcyan",
+                                                  "MEroyalblue",
+                                                  "MEsaddlebrown", 
+                                                  "MEskyblue",
+                                                  "MEsteelblue",
+                                                  "MEviolet",
+                                                  "MEwhite"
+                                                  )]
+```
+
+# Metabolomic data
+## ALL MODULES 
+```{r}
+nGenes = length(wgcna_data$probes);
+nSamples = nrow(met_PCA);
+
+MEs = wgcna_data$MEs
+modulePCACor = cor(MEs, met_PCA, use = "p");
+modulePCAPvalue = corPvalueStudent(modulePCACor, nSamples);
+
+pdf("./figures/pca_met_heatmap.pdf", width = 8, height = 15)
+
+# Will display correlations and their p-values
+textMatrixPCA =  paste(signif(modulePCACor, 2), "\n(",
+                    signif(modulePCAPvalue, 1), ")", sep = "");
+
+par(mar = c(5, 9, 3, 3));
+
+# Display the correlation values within a heatmap plot
+hm = labeledHeatmap(Matrix = modulePCACor,
+                    xLabels = colnames(modulePCACor),
+                    yLabels = names(MEs),
+                    ySymbols = names(MEs),
+                    colorLabels = FALSE,
+                    colors = blueWhiteRed(50),
+                    naColor = "white",
+                    xLabelsAngle = 0,
+                    xLabelsPosition = "top",
+                    xLabelsAdj = 0.5,
+                    textMatrix = textMatrixPCA,
+                    setStdMargins = FALSE,
+                    cex.text = 1,
+                    zlim = c(-1,1),
+                    showRows = NULL,
+                    font.lab.x = 1.5)
+dev.off()
+
+```
+![Heatmap met all modules](./figures/pca_met_heatmap.pdf){width=60%}
+
+## SIGNIFICANT MODULES FOR FEED EFFICIENCY
+```{r}
+
+nGenes = length(significatifmodule$probes);
+nSamples = nrow(met_PCA);
+
+MEs = significatifmodule$MEs
+modulePCACor = cor(MEs, met_PCA, use = "p");
+modulePCAPvalue = corPvalueStudent(modulePCACor, nSamples);
+
+pdf("./figures/pca_met_heatmap_sign.pdf", width = 8, height = 8)
+
+# Will display correlations and their p-values
+textMatrixPCA =  paste(signif(modulePCACor, 2), "\n(",
+                       signif(modulePCAPvalue, 1), ")", sep = "");
+
+par(mar = c(5, 9, 3, 3));
+
+# Display the correlation values within a heatmap plot
+hm = labeledHeatmap(Matrix = modulePCACor,
+                    xLabels = colnames(modulePCACor),
+                    yLabels = names(MEs),
+                    ySymbols = names(MEs),
+                    colorLabels = FALSE,
+                    colors = blueWhiteRed(50),
+                    naColor = "white",
+                    xLabelsAngle = 0,
+                    xLabelsPosition = "top",
+                    xLabelsAdj = 0.5,
+                    textMatrix = textMatrixPCA,
+                    setStdMargins = FALSE,
+                    cex.text = 1,
+                    zlim = c(-1,1),
+                    showRows = NULL,
+                    font.lab.x = 1.5)
+dev.off()
+
+```
+![Heatmap met significant modules](./figures/pca_met_heatmap_sign.pdf){width=60%}
+
+# Fatty acids data
+## ALL MODULES 
+```{r}
+nGenes = length(wgcna_data$probes);
+nSamples = nrow(FA_PCA);
+
+MEs = wgcna_data$MEs
+modulePCACor = cor(MEs, FA_PCA, use = "p");
+modulePCAPvalue = corPvalueStudent(modulePCACor, nSamples);
+
+pdf("./figures/pca_FA_heatmap.pdf", width = 10, height = 15)
+
+# Will display correlations and their p-values
+textMatrixPCA =  paste(signif(modulePCACor, 2), "\n(",
+                    signif(modulePCAPvalue, 1), ")", sep = "");
+
+par(mar = c(5, 9, 3, 3));
+
+# Display the correlation values within a heatmap plot
+hm = labeledHeatmap(Matrix = modulePCACor,
+                    xLabels = colnames(modulePCACor),
+                    yLabels = names(MEs),
+                    ySymbols = names(MEs),
+                    colorLabels = FALSE,
+                    colors = blueWhiteRed(50),
+                    naColor = "white",
+                    xLabelsAngle = 0,
+                    xLabelsPosition = "top",
+                    xLabelsAdj = 0.5,
+                    textMatrix = textMatrixPCA,
+                    setStdMargins = FALSE,
+                    cex.text = 1,
+                    zlim = c(-1,1),
+                    showRows = NULL,
+                    font.lab.x = 1.5)
+dev.off()
+
+```
+![Heatmap met all modules](./figures/pca_FA_heatmap.pdf){width=60%}
+
+## SIGNIFICANT MODULES FOR FEED EFFICIENCY
+```{r}
+
+nGenes = length(significatifmodule$probes);
+nSamples = nrow(FA_PCA);
+
+MEs = significatifmodule$MEs
+modulePCACor = cor(MEs, FA_PCA, use = "p");
+modulePCAPvalue = corPvalueStudent(modulePCACor, nSamples);
+
+pdf("./figures/pca_FA_heatmap_sign.pdf", width = 8, height = 8)
+
+# Will display correlations and their p-values
+textMatrixPCA =  paste(signif(modulePCACor, 2), "\n(",
+                       signif(modulePCAPvalue, 1), ")", sep = "");
+
+par(mar = c(5, 9, 3, 3));
+
+# Display the correlation values within a heatmap plot
+hm = labeledHeatmap(Matrix = modulePCACor,
+                    xLabels = colnames(modulePCACor),
+                    yLabels = names(MEs),
+                    ySymbols = names(MEs),
+                    colorLabels = FALSE,
+                    colors = blueWhiteRed(50),
+                    naColor = "white",
+                    xLabelsAngle = 0,
+                    xLabelsPosition = "top",
+                    xLabelsAdj = 0.5,
+                    textMatrix = textMatrixPCA,
+                    setStdMargins = FALSE,
+                    cex.text = 1,
+                    zlim = c(-1,1),
+                    showRows = NULL,
+                    font.lab.x = 1.5)
+dev.off()
+
+```
+![Heatmap met significant modules](./figures/pca_FA_heatmap_sign.pdf){width=60%}

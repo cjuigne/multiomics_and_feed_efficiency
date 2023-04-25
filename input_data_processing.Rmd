@@ -1,0 +1,240 @@
+---
+title: "R Notebook"
+output: html_notebook
+---
+
+Packages installation (if missing)
+```{r}
+setwd("~/R Fat Integer/data");
+
+if (!require("readxl")) install.packages("readxl")
+if (!require("dplyr")) install.packages("dplyr")   
+```
+```{r}
+source(file = "./WGCNA.R")
+source(file = "./fold_change_expression.R")
+```
+
+
+# 1. Import transcriptomic data
+Data availability: https://www.ncbi.nlm.nih.gov/geo/query/acc.cgi?acc=GSE70838
+```{r}
+rownames = read_excel("src/data_transcriptome_blood_FatInteger.xlsx")[,1]
+data = read_excel("src/data_transcriptome_blood_FatInteger.xlsx");
+data = as.data.frame(data[-c(1:3),-1])
+row.names(data) = t(rownames[-c(1:3),])
+```
+
+Take a quick look at what is in the data set:
+```{r}
+dim(data); # number of probes and individus
+names(data);
+```
+
+```{r}
+datExpr = as.data.frame(lapply(X = data, as.numeric));
+rownames(datExpr) = rownames(data)
+colnames(datExpr) = colnames(data)
+```
+
+```{r}
+gsg = goodSamplesGenes(datExpr, verbose = 3);
+gsg$allOK;
+```
+
+
+```{r}
+sampleTree = hclust(dist(t(datExpr)), method = "average")
+```
+
+Plot the sample tree to detect outliers samples:
+```{r}
+sizeGrWindow(12,9)
+par(cex = 0.6);
+par(mar = c(0,4,2,0))
+plot(sampleTree, main = "Sample clustering to detect outliers", sub="", xlab="", cex.lab = 1.5, cex.axis = 1.5, cex.main = 2)
+```
+
+One pig (#41) is detected as an outlier and further removed from the dataset due to aberrant values :
+```{r}
+clust = cutreeStatic(sampleTree, cutHeight = 150, minSize = 10)
+keepSamples = (clust==1)
+datExpr = datExpr[,keepSamples]
+
+datExpr = datExpr[ , order(as.numeric(names(datExpr)))]
+nProbes = ncol(datExpr)
+nSamples = nrow(datExpr)
+
+nProbes
+nSamples
+```
+Save data :
+```{r}
+save(nProbes, nSamples, datExpr, file =  "./rdata/datainput/FI_transcriptomic_blood_dataInput.RData")
+```
+
+### Number of replicates per unique genes in transcriptomic dataset:
+Import probes annotation data
+```{r}
+annotation = read_excel("./src/data_annotation60K_2016.xlsx", col_types = c("text", "skip", "skip", "skip", "skip", "skip", "skip", "skip", "skip", "skip", "skip", "skip", "skip", "skip", "skip", "skip", "skip", "skip", "skip", "skip", "skip", "skip", "skip", "skip", "skip", "text", "skip"))
+colnames(annotation) = c("ProbeName", "Annotation")
+annotation = annotation[-1,]
+```
+
+```{r}
+save(annotation, file = "./rdata/data/input/annotation2016.RData")
+```
+
+Counting the number of replicates:
+```{r}
+probes = data.frame(rownames(datExpr))
+names(probes)[1] = "ProbeName"
+probes_annot = left_join(probes, annotation)
+
+stats = as.data.frame(table(as.factor(probes_annot$Annotation)))
+summary(stats)
+```
+
+____________________________________
+# 2. Import phenotypic data
+
+```{r}
+datTraits = read_excel("./src/data_phenotypic.xlsx", col_types = c("skip", "text", "skip", "text", "text", "numeric", "numeric", "numeric", "numeric", "numeric", "numeric", "numeric"))
+datTraits$line = as.factor(datTraits$line)
+datTraits$diet = as.factor(datTraits$diet)
+datTraits = datTraits[-which(datTraits$num == '41'),]
+```
+
+```{r}
+summary(datTraits)
+```
+```{r}
+save(datTraits, file = "./rdata/datainput/datTraits.RData")
+```
+
+____________________________________
+# 3. Quantification of the number of probes that are significantly linked to the animal phenotypic traits of interest
+For each phenotypic trait we create a linear model to identify which one that most affects the expression levels of the molecular probes.
+
+```{r}
+table(colnames(datExpr) == datTraits$num)
+```
+```{r}
+datExpr_Matrix = t(datExpr)
+
+# collect residuals of linear model
+df_residuals_age = datExpr
+
+p_values_line = vector(length = nrow(datExpr))
+p_values_diet = vector(length = nrow(datExpr))
+p_values_age = vector(length = nrow(datExpr))
+p_values_weight = vector(length = nrow(datExpr))
+p_values_ADG = vector(length = nrow(datExpr))
+p_values_ADFI = vector(length = nrow(datExpr))
+p_values_FCR = vector(length = nrow(datExpr))
+p_values_loin = vector(length = nrow(datExpr))
+p_values_backfat = vector(length = nrow(datExpr))
+```
+
+```{r}
+for (i in 1:nrow(datExpr)){
+  md_line = lm(as.numeric(datExpr_Matrix[,i]) ~ as.factor(datTraits$line))
+  md_diet = lm(as.numeric(datExpr_Matrix[,i]) ~ as.factor(datTraits$diet))
+  md_age = lm(as.numeric(datExpr_Matrix[,i]) ~ as.numeric(datTraits$age))
+  md_weight = lm(as.numeric(datExpr_Matrix[,i]) ~ as.numeric(datTraits$weight))
+  md_ADG = lm(as.numeric(datExpr_Matrix[,i]) ~ as.numeric(datTraits$ADG))
+  md_ADFI = lm(as.numeric(datExpr_Matrix[,i]) ~ as.numeric(datTraits$ADFI))
+  md_FCR = lm(as.numeric(datExpr_Matrix[,i]) ~ as.numeric(datTraits$FCR))
+  md_loin = lm(as.numeric(datExpr_Matrix[,i]) ~ as.numeric(datTraits$`%loin`))
+  md_backfat = lm(as.numeric(datExpr_Matrix[,i]) ~ as.numeric(datTraits$`%backfat`))
+
+  p_values_line[i] = summary(md_line)$coefficients[2,4]
+  p_values_diet[i] = summary(md_diet)$coefficients[2,4]
+  p_values_age[i] = summary(md_age)$coefficients[2,4]
+  p_values_backfat[i] = summary(md_backfat)$coefficients[2,4]
+  p_values_ADFI[i] = summary(md_ADFI)$coefficients[2,4]
+  p_values_ADG[i] = summary(md_ADG)$coefficients[2,4]
+  p_values_FCR[i] = summary(md_FCR)$coefficients[2,4]
+  p_values_loin[i] = summary(md_loin)$coefficients[2,4]
+  p_values_weight[i] = summary(md_weight)$coefficients[2,4]
+  
+  df_residuals_age[i,] = md_age$residuals
+}
+```
+
+```{r}
+x = data.frame("Variable" = c("age", "diet", "%backfat", "ADFI", "ADG", "FCR", "line", "%loin","weight"),
+                "p value <0.01" = c(length(p_values_age[which(p_values_age<0.01)]),
+                                    length(p_values_diet[which(p_values_diet<0.01)]),
+                                    length(p_values_backfat[which(p_values_backfat<0.01)]),
+                                    length(p_values_ADFI[which(p_values_ADFI<0.01)]),
+                                    length(p_values_ADG[which(p_values_ADG<0.01)]),
+                                    length(p_values_FCR[which(p_values_FCR<0.01)]),
+                                    length(p_values_line[which(p_values_line<0.01)]),
+                                    length(p_values_loin[which(p_values_loin<0.01)]),
+                                    length(p_values_weight[which(p_values_weight<0.01)])),
+               
+                "p value <0.05" =c(length(p_values_age[which(p_values_age<0.05)]),
+                                    length(p_values_diet[which(p_values_diet<0.05)]),
+                                    length(p_values_backfat[which(p_values_backfat<0.05)]),
+                                    length(p_values_ADFI[which(p_values_ADFI<0.05)]),
+                                    length(p_values_ADG[which(p_values_ADG<0.05)]),
+                                    length(p_values_FCR[which(p_values_FCR<0.05)]),
+                                    length(p_values_line[which(p_values_line<0.05)]),
+                                    length(p_values_loin[which(p_values_loin<0.05)]),
+                                    length(p_values_weight[which(p_values_weight<0.05)])))
+x
+
+```
+
+The results of the linear regressions show that age at slaughter and line were the factors affecting the most the expression levels of molecular probes (19% of the probes significantly affected by age at slaughter and 14% by the line effect) (Supplementary Table 2).
+
+For next steps of analysis, we used the residuals of these linear regressions for the age effect, but preserved the intra- and inter-line variability for FE.
+
+____________________________________
+# 4. Fold change
+Only probes $i$ whose log fold-change $FC_i$ was greater than $1$ were selected, with	log_2(FC_i) = max(log_2(expression_i)) - min(log_2(expression_i))
+
+```{r}
+
+table(names(df_residuals_ageabt) == rownames(datTraits))
+rownames(datTraits) = datTraits$num
+table(names(df_residuals_ageabt) == rownames(datTraits))
+
+dataset = "(FI blood - Age at slaughter adjusted data)"
+data = df_residuals_age
+```
+
+```{r}
+FoldChangeExpr.distribution(dataExpr = data, cat = dataset)
+```
+
+```{r}
+datExprFoldChange = t(FoldChangeExpr(dataExpr = data, threshold = 1))
+```
+
+
+```{r}
+dim(datExprFoldChange)
+```
+This reduced dataset included $16,190$ probes for the $47$ pigs. 
+
+### Import fatty acids and metabolomic data:
+```{r}
+data_FA = read_excel("./src/data_phenotypic_met_FA.xlsx", sheet = "fatty_acids_blood")
+data_met = read_excel("./src/data_phenotypic_met_FA.xlsx", sheet = "metabolome")
+
+data_FA = data_FA[-which(data_FA$num==41),]
+data_met = data_met[-which(data_met$num==41),]
+```
+
+```{r}
+save(datExprFoldChange, file = "./rdata/datainput/FI_residuals_reduced_transcriptome.RData")
+```
+
+```{r}
+save(datExprFoldChange, annotation, datTraits, data_FA, data_met, file = "./rdata/datainput/datainput.RData")
+```
+
+
+
